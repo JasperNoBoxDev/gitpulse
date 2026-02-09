@@ -1,73 +1,55 @@
-# React + TypeScript + Vite
+# GitPulse
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+AI-powered project management dashboard for GitHub organisations.
 
-Currently, two official plugins are available:
+## Quick Start
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Open http://localhost:5173 and sign in with a GitHub personal access token.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Auth Modes
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+GitPulse supports two authentication methods:
+
+### Personal Access Token (default)
+Works everywhere, no setup needed. Create a [GitHub PAT](https://github.com/settings/tokens/new?scopes=repo,read:org&description=GitPulse) with `repo` and `read:org` scopes.
+
+### GitHub OAuth (optional)
+Enables the "Sign in with GitHub" button. Requires:
+1. A [GitHub OAuth App](https://github.com/settings/applications/new)
+2. A token exchange proxy (since GitHub's OAuth endpoints don't support CORS)
+
+## Deploy
+
+### GitHub Pages (free)
+
+1. Enable Pages in repo settings (Source: GitHub Actions)
+2. Optionally set up OAuth:
+   - Create a GitHub OAuth App (callback URL: `https://yourname.github.io/gitpulse/api/auth/callback`)
+   - Deploy the Cloudflare Worker in `/worker/` ([free tier](https://workers.cloudflare.com))
+   - Add repo variables: `VITE_GITHUB_CLIENT_ID`, `VITE_OAUTH_PROXY_URL`
+3. Push to main — auto-deploys via GitHub Actions
+
+Without OAuth configured, users authenticate via personal access tokens.
+
+### Vercel
+
+1. Import the repo on [Vercel](https://vercel.com)
+2. Add environment variables: `VITE_GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`
+3. Deploy — OAuth works out of the box via `/api/auth/callback`
+
+## Stack
+
+- React 19, TypeScript, Vite
+- Tailwind CSS, Lucide icons
+- TanStack Query, Octokit
+- Vercel serverless functions (optional)
+- Cloudflare Workers OAuth proxy (optional)
+
+## Privacy
+
+All data stays in the browser. Tokens are stored in localStorage. No telemetry, no analytics, no third-party servers.

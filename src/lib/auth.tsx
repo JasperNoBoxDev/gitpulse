@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from "react";
 import { fetchUser, resetOctokit } from "@/lib/github";
+import { getAuthMode, getOAuthLoginUrl } from "@/lib/oauth-proxy";
 
 interface User {
   login: string;
@@ -16,7 +17,9 @@ interface User {
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: (token: string) => Promise<void>;
+  authMode: "oauth" | "pat";
+  loginWithToken: (token: string) => Promise<void>;
+  loginWithOAuth: () => void;
   logout: () => void;
   selectedOrg: string | null;
   setSelectedOrg: (org: string | null) => void;
@@ -30,26 +33,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [selectedOrg, setSelectedOrg] = useState<string | null>(
     localStorage.getItem("gp_org"),
   );
+  const authMode = getAuthMode();
 
   useEffect(() => {
+    // Check for OAuth callback token in URL params
+    const params = new URLSearchParams(window.location.search);
+    const callbackToken = params.get("token");
+    if (callbackToken) {
+      window.history.replaceState({}, "", window.location.pathname);
+      localStorage.setItem("gp_token", callbackToken);
+      resetOctokit();
+      fetchUser()
+        .then(setUser)
+        .catch(() => localStorage.removeItem("gp_token"))
+        .finally(() => setIsLoading(false));
+      return;
+    }
+
+    // Check for existing stored token
     const token = localStorage.getItem("gp_token");
     if (token) {
       fetchUser()
         .then(setUser)
-        .catch(() => {
-          localStorage.removeItem("gp_token");
-        })
+        .catch(() => localStorage.removeItem("gp_token"))
         .finally(() => setIsLoading(false));
     } else {
       setIsLoading(false);
     }
   }, []);
 
-  const login = async (token: string) => {
+  const loginWithToken = async (token: string) => {
     localStorage.setItem("gp_token", token);
     resetOctokit();
     const userData = await fetchUser();
     setUser(userData);
+  };
+
+  const loginWithOAuth = () => {
+    window.location.href = getOAuthLoginUrl();
   };
 
   const logout = () => {
@@ -71,7 +92,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         isLoading,
-        login,
+        authMode,
+        loginWithToken,
+        loginWithOAuth,
         logout,
         selectedOrg,
         setSelectedOrg: handleSetOrg,
