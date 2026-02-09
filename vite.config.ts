@@ -56,7 +56,7 @@ function oauthDevProxy(): Plugin {
           },
         );
 
-        const data = await tokenRes.json();
+        const data = (await tokenRes.json()) as Record<string, string>;
 
         if (data.error) {
           res.writeHead(400, { "Content-Type": "application/json" });
