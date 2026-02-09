@@ -17,7 +17,7 @@ function oauthDevProxy(): Plugin {
     configResolved(config) {
       const env = loadEnv(config.mode, config.root, "");
       clientId = env.VITE_GITHUB_CLIENT_ID ?? "";
-      clientSecret = env.GITHUB_CLIENT_SECRET ?? "";
+      clientSecret = env.OAUTH_CLIENT_SECRET ?? "";
     },
     configureServer(server) {
       server.middlewares.use("/api/auth/callback", async (req, res) => {
@@ -34,7 +34,7 @@ function oauthDevProxy(): Plugin {
           res.writeHead(500, { "Content-Type": "application/json" });
           res.end(
             JSON.stringify({
-              error: "Set VITE_GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET in .env.local",
+              error: "Set VITE_GITHUB_CLIENT_ID and OAUTH_CLIENT_SECRET in .env.local",
             }),
           );
           return;
