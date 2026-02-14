@@ -75,7 +75,11 @@ export async function savePeople(org: string, people: Person[]) {
 // Settings
 export async function fetchSettings(org: string): Promise<OrgSettings | null> {
   const result = await getFileContent<OrgSettings>(org, "settings.json");
-  return result?.data ?? null;
+  if (!result?.data) return null;
+  // Normalize teams: add repos[] if missing (backward compat)
+  const settings = result.data;
+  settings.teams = settings.teams.map((t) => ({ ...t, repos: t.repos ?? [] }));
+  return settings;
 }
 
 export async function saveSettings(org: string, settings: OrgSettings) {
@@ -149,7 +153,7 @@ export async function createConfigRepo(org: string): Promise<void> {
 
   // Seed default settings.json
   const defaultSettings: OrgSettings = {
-    teams: [{ name: "Team", color: "#1B6971" }],
+    teams: [{ name: "Team", color: "#1B6971", repos: [] }],
   };
   await ok.rest.repos.createOrUpdateFileContents({
     owner: org,

@@ -86,8 +86,14 @@ export interface Person {
   role: string;
 }
 
+export interface Team {
+  name: string;
+  color: string;
+  repos: string[];
+}
+
 export interface OrgSettings {
-  teams: { name: string; color: string }[];
+  teams: Team[];
 }
 
 // Extended issue info with repo context

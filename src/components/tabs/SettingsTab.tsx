@@ -1,9 +1,13 @@
 import { useAuth } from "@/lib/auth";
 import { useRepos } from "@/hooks/useGitHub";
+import { useSettings, useSaveSettings } from "@/hooks/useConfigRepo";
+import { TeamManagement } from "@/components/settings/TeamManagement";
 
 export function SettingsTab() {
   const { user, selectedOrg, logout } = useAuth();
   const { data: repos } = useRepos();
+  const { data: settings } = useSettings();
+  const saveSettings = useSaveSettings();
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -36,14 +40,23 @@ export function SettingsTab() {
         </button>
       </div>
 
+      {/* Teams */}
+      {settings && repos && (
+        <TeamManagement
+          settings={settings}
+          saveSettings={saveSettings}
+          repos={repos}
+        />
+      )}
+
       {/* Tracked repos */}
       <div className="bg-white rounded-xl border border-stone-200 p-5 space-y-3">
         <h2 className="text-sm font-semibold text-stone-900">
           Tracked Repositories ({repos?.length ?? 0})
         </h2>
         <p className="text-xs text-stone-400">
-          All repositories in {selectedOrg} are tracked by default. Repo
-          filtering coming soon.
+          All repositories in {selectedOrg} are tracked by default. Assign repos
+          to teams above to organise your dashboard.
         </p>
         <div className="grid grid-cols-2 gap-1.5 max-h-60 overflow-y-auto">
           {repos?.map((repo) => (
