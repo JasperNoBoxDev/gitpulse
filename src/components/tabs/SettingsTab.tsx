@@ -1,13 +1,16 @@
 import { useAuth } from "@/lib/auth";
 import { useRepos } from "@/hooks/useGitHub";
-import { useSettings, useSaveSettings } from "@/hooks/useConfigRepo";
+import { useSettings, useSaveSettings, usePeople, useSavePeople } from "@/hooks/useConfigRepo";
 import { TeamManagement } from "@/components/settings/TeamManagement";
+import { PeopleManagement } from "@/components/settings/PeopleManagement";
 
 export function SettingsTab() {
   const { user, selectedOrg, logout } = useAuth();
   const { data: repos } = useRepos();
   const { data: settings } = useSettings();
   const saveSettings = useSaveSettings();
+  const { data: people } = usePeople();
+  const savePeople = useSavePeople();
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -46,6 +49,15 @@ export function SettingsTab() {
           settings={settings}
           saveSettings={saveSettings}
           repos={repos}
+        />
+      )}
+
+      {/* People */}
+      {people && settings && (
+        <PeopleManagement
+          people={people}
+          savePeople={savePeople}
+          teams={settings.teams}
         />
       )}
 

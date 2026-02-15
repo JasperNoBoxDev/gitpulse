@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Pencil, Trash2, X, Check, Search } from "lucide-react";
 import type { OrgSettings, Team, RepoInfo } from "@/lib/types";
 import type { UseMutationResult } from "@tanstack/react-query";
@@ -27,16 +27,23 @@ export function TeamManagement({ settings, saveSettings, repos }: Props) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
   const [editColor, setEditColor] = useState("");
+  const [editRepos, setEditRepos] = useState<string[]>([]);
   const [repoSearch, setRepoSearch] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null);
 
   const teams = settings.teams;
 
-  // Build map of repo -> team name (for repos assigned to other teams)
+  // Build map of repo -> team name (excluding the team being edited)
   const repoToTeam = new Map<string, string>();
-  teams.forEach((t) => t.repos.forEach((r) => repoToTeam.set(r, t.name)));
+  teams.forEach((t, i) => {
+    if (i === editingIndex) return; // skip edited team — use editRepos instead
+    t.repos.forEach((r) => repoToTeam.set(r, t.name));
+  });
 
-  const unassignedRepos = repos.filter((r) => !repoToTeam.has(r.name));
+  const unassignedRepos = repos.filter((r) => {
+    if (editingIndex !== null && editRepos.includes(r.name)) return false;
+    return !repoToTeam.has(r.name);
+  });
 
   function persist(nextTeams: Team[]) {
     saveSettings.mutate({ ...settings, teams: nextTeams });
@@ -55,6 +62,7 @@ export function TeamManagement({ settings, saveSettings, repos }: Props) {
     setEditingIndex(index);
     setEditName(teams[index].name);
     setEditColor(teams[index].color);
+    setEditRepos([...teams[index].repos]);
     setRepoSearch("");
     setConfirmDelete(null);
   }
@@ -74,22 +82,18 @@ export function TeamManagement({ settings, saveSettings, repos }: Props) {
     if (isDuplicate) return;
 
     const next = teams.map((t, i) =>
-      i === editingIndex ? { ...t, name: trimmed, color: editColor } : t,
+      i === editingIndex ? { ...t, name: trimmed, color: editColor, repos: editRepos } : t,
     );
     persist(next);
     setEditingIndex(null);
   }
 
-  function toggleRepo(teamIndex: number, repoName: string) {
-    const team = teams[teamIndex];
-    const has = team.repos.includes(repoName);
-    const nextRepos = has
-      ? team.repos.filter((r) => r !== repoName)
-      : [...team.repos, repoName];
-    const next = teams.map((t, i) =>
-      i === teamIndex ? { ...t, repos: nextRepos } : t,
+  function toggleRepo(repoName: string) {
+    setEditRepos((prev) =>
+      prev.includes(repoName)
+        ? prev.filter((r) => r !== repoName)
+        : [...prev, repoName],
     );
-    persist(next);
   }
 
   function handleDelete(index: number) {
@@ -117,7 +121,7 @@ export function TeamManagement({ settings, saveSettings, repos }: Props) {
           <button
             onClick={() => {
               setAddingTeam(true);
-              setEditingIndex(null);
+              if (editingIndex !== null) handleSaveEdit();
               setConfirmDelete(null);
             }}
             className="flex items-center gap-1 text-xs text-teal-700 hover:text-teal-900 cursor-pointer"
@@ -169,140 +173,146 @@ export function TeamManagement({ settings, saveSettings, repos }: Props) {
       )}
 
       <div className="space-y-2">
-        {teams.map((team, i) => (
-          <div key={i} className="border border-stone-200 rounded-lg overflow-hidden">
-            {/* Team Row */}
-            <div className="flex items-center gap-3 px-3 py-2.5">
-              <div
-                className="w-3 h-3 rounded-full shrink-0"
-                style={{ backgroundColor: team.color }}
-              />
-              <span className="text-sm font-medium text-stone-800 flex-1">
-                {team.name}
-              </span>
-              <span className="text-xs text-stone-400 tabular-nums">
-                {team.repos.length} repo{team.repos.length !== 1 && "s"}
-              </span>
-              {editingIndex !== i && confirmDelete !== i && (
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => startEdit(i)}
-                    className="p-1 text-stone-400 hover:text-stone-600 cursor-pointer"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => {
-                      setConfirmDelete(i);
-                      setEditingIndex(null);
-                    }}
-                    className="p-1 text-stone-400 hover:text-red-500 cursor-pointer"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              )}
-              {confirmDelete === i && (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-red-500">Delete?</span>
-                  <button
-                    onClick={() => handleDelete(i)}
-                    className="text-xs text-red-600 font-medium hover:text-red-800 cursor-pointer"
-                  >
-                    Yes
-                  </button>
-                  <button
-                    onClick={() => setConfirmDelete(null)}
-                    className="text-xs text-stone-400 hover:text-stone-600 cursor-pointer"
-                  >
-                    No
-                  </button>
+        {teams.map((team, i) => {
+          const displayRepos = editingIndex === i ? editRepos : team.repos;
+
+          return (
+            <div key={i} className="border border-stone-200 rounded-lg overflow-hidden">
+              {/* Team Row */}
+              <div className="flex items-center gap-3 px-3 py-2.5">
+                <div
+                  className="w-3 h-3 rounded-full shrink-0"
+                  style={{ backgroundColor: editingIndex === i ? editColor : team.color }}
+                />
+                <span className="text-sm font-medium text-stone-800 flex-1">
+                  {editingIndex === i ? editName || team.name : team.name}
+                </span>
+                <span className="text-xs text-stone-400 tabular-nums">
+                  {displayRepos.length} repo{displayRepos.length !== 1 && "s"}
+                </span>
+                {editingIndex !== i && confirmDelete !== i && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => startEdit(i)}
+                      className="p-1 text-stone-400 hover:text-stone-600 cursor-pointer"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setConfirmDelete(i);
+                        if (editingIndex !== null) handleSaveEdit();
+                      }}
+                      className="p-1 text-stone-400 hover:text-red-500 cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+                {confirmDelete === i && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-red-500">Delete?</span>
+                    <button
+                      onClick={() => handleDelete(i)}
+                      className="text-xs text-red-600 font-medium hover:text-red-800 cursor-pointer"
+                    >
+                      Yes
+                    </button>
+                    <button
+                      onClick={() => setConfirmDelete(null)}
+                      className="text-xs text-stone-400 hover:text-stone-600 cursor-pointer"
+                    >
+                      No
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Edit Panel */}
+              {editingIndex === i && (
+                <div className="border-t border-stone-200 bg-stone-50 p-3 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleSaveEdit();
+                        if (e.key === "Escape") cancelEdit();
+                      }}
+                      className="flex-1 text-sm border border-stone-200 rounded-lg px-2.5 py-1 focus:outline-none focus:border-teal-600"
+                    />
+                    <button
+                      onClick={handleSaveEdit}
+                      className="p-1 text-teal-700 hover:text-teal-900 cursor-pointer"
+                      title="Save"
+                    >
+                      <Check className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={cancelEdit}
+                      className="p-1 text-stone-400 hover:text-stone-600 cursor-pointer"
+                      title="Cancel"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <ColorPicker value={editColor} onChange={setEditColor} />
+
+                  {/* Repo Assignment */}
+                  <div className="space-y-2">
+                    <div className="text-xs font-medium text-stone-600">
+                      Assign Repositories
+                    </div>
+                    {repos.length > 15 && (
+                      <div className="relative">
+                        <Search className="w-3.5 h-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-stone-400" />
+                        <input
+                          value={repoSearch}
+                          onChange={(e) => setRepoSearch(e.target.value)}
+                          placeholder="Search repos..."
+                          className="w-full text-xs border border-stone-200 rounded-lg pl-7 pr-2 py-1 focus:outline-none focus:border-teal-600"
+                        />
+                      </div>
+                    )}
+                    <div className="max-h-48 overflow-y-auto space-y-0.5">
+                      {filteredRepos.map((repo) => {
+                        const assignedTo = repoToTeam.get(repo.name);
+                        const isOurs = editRepos.includes(repo.name);
+                        const isOther = !!assignedTo;
+
+                        return (
+                          <label
+                            key={repo.id}
+                            className={`flex items-center gap-2 px-2 py-1 rounded text-xs ${
+                              isOther
+                                ? "text-stone-300 cursor-default"
+                                : "text-stone-600 hover:bg-stone-100 cursor-pointer"
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isOurs}
+                              disabled={isOther}
+                              onChange={() => toggleRepo(repo.name)}
+                              className="accent-teal-700"
+                            />
+                            <span>{repo.name}</span>
+                            {isOther && (
+                              <span className="text-stone-300 ml-auto">
+                                (assigned to {assignedTo})
+                              </span>
+                            )}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
-
-            {/* Edit Panel */}
-            {editingIndex === i && (
-              <div className="border-t border-stone-200 bg-stone-50 p-3 space-y-3">
-                <div className="flex items-center gap-2">
-                  <input
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") handleSaveEdit();
-                      if (e.key === "Escape") cancelEdit();
-                    }}
-                    className="flex-1 text-sm border border-stone-200 rounded-lg px-2.5 py-1 focus:outline-none focus:border-teal-600"
-                  />
-                  <button
-                    onClick={handleSaveEdit}
-                    className="p-1 text-teal-700 hover:text-teal-900 cursor-pointer"
-                  >
-                    <Check className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={cancelEdit}
-                    className="p-1 text-stone-400 hover:text-stone-600 cursor-pointer"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-
-                <ColorPicker value={editColor} onChange={setEditColor} />
-
-                {/* Repo Assignment */}
-                <div className="space-y-2">
-                  <div className="text-xs font-medium text-stone-600">
-                    Assign Repositories
-                  </div>
-                  {repos.length > 15 && (
-                    <div className="relative">
-                      <Search className="w-3.5 h-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-stone-400" />
-                      <input
-                        value={repoSearch}
-                        onChange={(e) => setRepoSearch(e.target.value)}
-                        placeholder="Search repos..."
-                        className="w-full text-xs border border-stone-200 rounded-lg pl-7 pr-2 py-1 focus:outline-none focus:border-teal-600"
-                      />
-                    </div>
-                  )}
-                  <div className="max-h-48 overflow-y-auto space-y-0.5">
-                    {filteredRepos.map((repo) => {
-                      const assignedTo = repoToTeam.get(repo.name);
-                      const isOurs = team.repos.includes(repo.name);
-                      const isOther = assignedTo && assignedTo !== team.name;
-
-                      return (
-                        <label
-                          key={repo.id}
-                          className={`flex items-center gap-2 px-2 py-1 rounded text-xs ${
-                            isOther
-                              ? "text-stone-300 cursor-default"
-                              : "text-stone-600 hover:bg-stone-100 cursor-pointer"
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isOurs}
-                            disabled={!!isOther}
-                            onChange={() => toggleRepo(i, repo.name)}
-                            className="accent-teal-700"
-                          />
-                          <span>{repo.name}</span>
-                          {isOther && (
-                            <span className="text-stone-300 ml-auto">
-                              (assigned to {assignedTo})
-                            </span>
-                          )}
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Unassigned repos summary */}

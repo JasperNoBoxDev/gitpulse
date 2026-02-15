@@ -65,7 +65,12 @@ export async function saveFeatures(org: string, features: Feature[]) {
 // People
 export async function fetchPeople(org: string): Promise<Person[]> {
   const result = await getFileContent<Person[]>(org, "people.json");
-  return result?.data ?? [];
+  if (!result?.data) return [];
+  // Normalize: migrate legacy `team` string → `teams` array
+  return result.data.map((p: any) => ({
+    ...p,
+    teams: p.teams ?? (p.team ? [p.team] : []),
+  }));
 }
 
 export async function savePeople(org: string, people: Person[]) {
