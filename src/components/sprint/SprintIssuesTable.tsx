@@ -36,7 +36,7 @@ export function SprintIssuesTable({ openIssues, closedIssues, isLoading }: Sprin
         <span className="text-xs text-stone-400">{openCount} open</span>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-auto max-h-[400px]">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-stone-100 text-left">
